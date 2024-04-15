@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .chat-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .chat-messages {
+            overflow-y: scroll;
+            max-height: 300px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .chat-input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .chat-btn {
+            padding: 8px 16px;
+            margin-left: 5px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="auth-container">
+        <h1>Chat App</h1>
+        <div id="firebaseui-auth-container"></div>
+    </div>
+
+    <div id="chat-container" style="display: none;">
+        <h1>Welcome, <span id="user-name"></span>!</h1>
+        <div class="chat-messages" id="chat-messages"></div>
+        <input type="text" class="chat-input" id="chat-input" placeholder="Type your message...">
+        <button class="chat-btn" onclick="sendMessage()">Send</button>
+        <button class="chat-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.5/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.5/firebase-database.js"></script>
+    <script src="https://cdn.firebase.com/libs/firebaseui/5.0.0/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/5.0.0/firebaseui.css" />
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        // Initialize the FirebaseUI widget using Firebase
+        const ui = new firebaseui.auth.AuthUI(firebase.auth());
+
+        // FirebaseUI configuration
+        const uiConfig = {
+            signInSuccessUrl: '/',
+            signInOptions: [
+                firebase.auth.EmailAuthProvider.PROVIDER_ID,
+                firebase.auth.GoogleAuthProvider.PROVIDER_ID
+            ],
+            tosUrl: '/',
+            privacyPolicyUrl: '/'
+        };
+
+        // Start the FirebaseUI authentication UI
+        ui.start('#firebaseui-auth-container', uiConfig);
+
+        // Check if user is authenticated
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                // User is signed in
+                document.getElementById('auth-container').style.display = 'none';
+                document.getElementById('chat-container').style.display = 'block';
+                document.getElementById('user-name').innerText = user.displayName || user.email;
+
+                // Load message history
+                loadMessageHistory();
+            } else {
+                // User is signed out
+                document.getElementById('auth-container').style.display = 'block';
+                document.getElementById('chat-container').style.display = 'none';
+            }
+        });
+
+        function sendMessage() {
+            const messageInput = document.getElementById('chat-input');
+            const message = messageInput.value.trim();
+            if (message !== '') {
+                // Save message to database
+                firebase.database().ref('messages').push({
+                    user: firebase.auth().currentUser.displayName || firebase.auth().currentUser.email,
+                    message: message,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                messageInput.value = '';
+            }
+        }
+
+        function loadMessageHistory() {
+            const chatMessages = document.getElementById('chat-messages');
+            firebase.database().ref('messages').on('child_added', (snapshot) => {
+                const message = snapshot.val();
+                const messageElement = document.createElement('div');
+                messageElement.textContent = `${message.user}: ${message.message}`;
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+        }
+
+        function logout() {
+            firebase.auth().signOut();
+        }
+    </script>
+</body>
+</html>
